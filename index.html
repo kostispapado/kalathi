@@ -259,7 +259,7 @@ dialog ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
       <label>Όριο <input type="number" id="fMin" min="0" step="any" inputmode="decimal"></label>
       <label>Στόχος <input type="number" id="fTarget" min="0" step="any" inputmode="decimal"></label>
     </div>
-    <p class="hint">Όταν το απόθεμα πέσει στο όριο ή πιο κάτω, το προϊόν μπαίνει στη λίστα με ποσότητα όση λείπει για τον στόχο.</p>
+    <p class="hint">Όταν το απόθεμα φτάσει το όριο ή πέσει πιο κάτω, το προϊόν μπαίνει στη λίστα με την ποσότητα που λείπει για τον στόχο. Αν ο στόχος δεν είναι πάνω από το όριο, η ποσότητα φτάνει ώστε να ξεπεράσεις το όριο.</p>
     <div class="actions">
       <button class="btn danger" type="button" id="fDelete">Διαγραφή</button>
       <span>
@@ -359,7 +359,8 @@ function need(it) {
   const s = stockOf(it), min = Number(it.min) || 0, target = Number(it.target) || 0, extra = Number(it.extra) || 0;
   if (it.oneOff) return { qty: extra || 1, reason: "man" };
   let qty = 0, reason = null;
-  if (target > 0 && s <= min && target > s) { qty = target - s; reason = s <= 0 ? "out" : "low"; }
+  // Στο όριο ή κάτω: αγοράζουμε ως τον στόχο, και πάντα τόσο ώστε να ξεπεράσουμε το όριο.
+  if (s <= min) { const step = it.unit === "kg" || it.unit === "λίτρα" ? 0.5 : 1; qty = Math.max(target, min + step) - s; reason = s <= 0 ? "out" : "low"; }
   if (extra > 0) { qty += extra; reason = reason || "man"; }
   return { qty: Math.round(qty * 100) / 100, reason };
 }
