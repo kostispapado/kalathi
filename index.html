@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Σπιτικό Καλάθι</title>
+<meta name="description" content="Απόθεμα σπιτιού που φτιάχνει μόνο του τη λίστα για τα ψώνια.">
+<meta name="theme-color" content="#F1F5F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Καλάθι">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;750&family=Fira+Code:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow app column; sticky header with summary + tabs, list grouped by supermarket aisle */
+:root {
+  --bg: #F1F5F1;
+  --surface: #FFFFFF;
+  --ink: #17221B;
+  --muted: #5B6A60;
+  --line: #D9E2DA;
+  --accent: #1F6B45;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DFEDE3;
+  --ok: #2F7D4F;
+  --warn: #A86A12;
+  --crit: #B4382F;
+  --font-ui: "Commissioner", "Segoe UI", system-ui, sans-serif;
+  --font-num: "Fira Code", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101713; --surface: #172019; --ink: #E5ECE6; --muted: #98A79D; --line: #29352D;
+    --accent: #5DBB85; --accent-ink: #0C1A11; --accent-soft: #1C3325;
+    --ok: #6CC28F; --warn: #E2AA4C; --crit: #EE7468; color-scheme: dark;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+header .wrap { padding-block: 16px 0; display: grid; gap: 12px; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 22px; font-weight: 750; letter-spacing: -0.01em; text-wrap: balance; }
+.summary { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; align-items: center; }
+.summary .line { font-size: 14px; color: var(--muted); }
+.summary .line b { color: var(--ink); font-weight: 600; }
+.meter { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
+.meter.over i { background: var(--crit); }
+.tabs { display: flex; gap: 4px; }
+.tabs button { flex: 1; border: 0; background: none; padding: 10px 4px 12px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs .count { font-family: var(--font-num); font-size: 12px; font-weight: 500; margin-left: 4px; padding: 1px 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+
+main .wrap { padding-block: 16px 120px; display: grid; gap: 20px; }
+.banner { padding: 10px 14px; border-radius: var(--r); background: var(--accent-soft); font-size: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.banner button, .chip-btn { border: 1px solid var(--accent); background: none; color: var(--accent); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 600; }
+
+.quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.quick input { flex: 1 1 200px; min-width: 0; }
+input[type=text], input[type=number], input[type=search], select {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-height: 42px;
+}
+.btn { border: 0; border-radius: 8px; padding: 9px 16px; min-height: 42px; font-weight: 600; background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: none; color: var(--crit); border: 1px solid var(--crit); }
+.btn:disabled { opacity: .45; cursor: default; }
+.toolbar { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.aisle { display: grid; gap: 6px; }
+.aisle h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.aisle h2 .no { font-family: var(--font-num); color: var(--accent); letter-spacing: 0; }
+.rows { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row .name { min-width: 0; }
+.row .name strong { font-weight: 600; display: block; overflow-wrap: anywhere; }
+.row .meta { font-size: 13px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.done .name strong { text-decoration: line-through; color: var(--muted); }
+.check { width: 26px; height: 26px; border-radius: 7px; border: 2px solid var(--line); background: none; display: grid; place-items: center; padding: 0; }
+.check svg { width: 16px; height: 16px; stroke: var(--accent-ink); opacity: 0; }
+.row.done .check { background: var(--accent); border-color: var(--accent); }
+.row.done .check svg { opacity: 1; }
+.qty { text-align: right; white-space: nowrap; }
+.qty .q { font-weight: 500; }
+.qty .p { font-size: 12px; color: var(--muted); }
+
+.pill { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.crit { color: var(--crit); }
+.pill.warn { color: var(--warn); }
+.pill.ok { color: var(--ok); }
+.pill.man { color: var(--accent); }
+
+.inv-row { grid-template-columns: 1fr auto auto; }
+.stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stepper button { width: 36px; height: 36px; border: 0; background: none; font-size: 18px; line-height: 1; }
+.stepper button:active { background: var(--accent-soft); }
+.stepper span { min-width: 64px; text-align: center; font-size: 14px; }
+.icon-btn { width: 36px; height: 36px; border: 0; background: none; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+.icon-btn:active { background: var(--accent-soft); color: var(--ink); }
+.icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+.empty { text-align: center; padding: 36px 16px; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
+.empty strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--bg); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.dock .wrap { padding-block: 12px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.dock .info { font-size: 14px; color: var(--muted); min-width: 0; }
+.dock .info b { color: var(--ink); }
+
+.trip { padding: 12px 14px; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.trip:first-child { border-top: 0; }
+.trip .head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
+.trip .items { font-size: 13px; color: var(--muted); }
+.box { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+.box h2 { margin: 0; font-size: 15px; }
+.box p { margin: 0; font-size: 13px; color: var(--muted); }
+.box label { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+.box .row2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.stats div { display: grid; gap: 2px; }
+.stats small { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.stats b { font-family: var(--font-num); font-size: 18px; font-weight: 500; }
+
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); padding: 0; width: min(460px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(10, 20, 14, .45); }
+dialog form, dialog .pad { padding: 20px; display: grid; gap: 14px; }
+dialog h3 { margin: 0; font-size: 18px; }
+dialog label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+dialog .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+dialog .hint { font-size: 12px; color: var(--muted); margin: -6px 0 0; }
+dialog .actions { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+dialog .actions span { display: flex; gap: 8px; }
+dialog ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 20px; font-size: 14px; z-index: 20; max-width: calc(100vw - 32px); }
+@media (max-width: 480px) {
+  .inv-row { grid-template-columns: 1fr auto; }
+  .inv-row .pill-cell { display: none; }
+  dialog .grid2 { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>Σπιτικό Καλάθι</h1>
+      <button class="chip-btn" type="button" id="installBtn" hidden>Εγκατάσταση</button>
+    </div>
+    <div class="summary">
+      <div class="line" id="sumLine"></div>
+      <div class="line num" id="sumBudget"></div>
+      <div class="meter" id="meter"><i style="width:0"></i></div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-list" aria-selected="true" data-tab="list">Λίστα<span class="count" id="cList">0</span></button>
+      <button role="tab" id="tab-inv" aria-selected="false" data-tab="inv">Απόθεμα<span class="count" id="cInv">0</span></button>
+      <button role="tab" id="tab-trips" aria-selected="false" data-tab="trips">Αγορές</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="banner" id="sampleBanner" hidden>
+      <span>Τα προϊόντα του αποθέματος είναι παραδείγματα για να ξεκινήσεις. Άλλαξέ τα ή σβήσ' τα.</span>
+      <button type="button" id="clearSamples">Διαγραφή παραδειγμάτων</button>
+    </div>
+
+    <section id="view-list" role="tabpanel">
+      <div style="display:grid;gap:20px">
+        <form class="quick" id="quickForm" autocomplete="off">
+          <input type="text" id="quickName" placeholder="Πρόσθεσε κάτι για αυτή τη φορά…" aria-label="Νέο προϊόν για τη λίστα">
+          <select id="quickCat" aria-label="Κατηγορία"></select>
+          <button class="btn" type="submit">Προσθήκη</button>
+        </form>
+        <div class="toolbar"><button class="btn ghost" type="button" id="shareBtn">Αποστολή λίστας</button></div>
+        <div id="listOut" style="display:grid;gap:20px"></div>
+      </div>
+    </section>
+
+    <section id="view-inv" role="tabpanel" hidden>
+      <div style="display:grid;gap:20px">
+        <div class="quick">
+          <input type="search" id="invSearch" placeholder="Αναζήτηση στο απόθεμα" aria-label="Αναζήτηση">
+          <button class="btn" type="button" id="newItem">Νέο προϊόν</button>
+        </div>
+        <div id="invOut" style="display:grid;gap:20px"></div>
+      </div>
+    </section>
+
+    <section id="view-trips" role="tabpanel" hidden>
+      <div style="display:grid;gap:20px">
+        <div class="box">
+          <div class="stats" id="stats"></div>
+          <form class="row2" id="budgetForm">
+            <label>Προϋπολογισμός εβδομάδας (€)
+              <input type="number" id="budgetIn" min="0" step="5" inputmode="decimal" style="width:140px">
+            </label>
+            <button class="btn ghost" type="submit">Αποθήκευση</button>
+          </form>
+        </div>
+        <div id="tripsOut"></div>
+        <div class="box">
+          <h2>Αντίγραφο ασφαλείας</h2>
+          <p>Τα δεδομένα μένουν μόνο σε αυτή τη συσκευή. Κράτα ένα αντίγραφο ή μετέφερέ τα σε άλλο κινητό.</p>
+          <div class="row2">
+            <button class="btn ghost" type="button" id="exportBtn">Αποθήκευση αρχείου</button>
+            <button class="btn ghost" type="button" id="importBtn">Επαναφορά από αρχείο</button>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="dock" id="dock">
+  <div class="wrap">
+    <div class="info" id="dockInfo">Τσέκαρε ό,τι μπαίνει στο καλάθι.</div>
+    <button class="btn" id="finish" type="button" disabled>Ολοκλήρωση αγορών</button>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="itemForm" autocomplete="off">
+    <h3 id="dlgTitle">Νέο προϊόν</h3>
+    <label>Όνομα <input type="text" id="fName" required></label>
+    <div class="grid2">
+      <label>Κατηγορία <select id="fCat"></select></label>
+      <label>Μονάδα <select id="fUnit"></select></label>
+    </div>
+    <div class="grid2">
+      <label>Έχουμε τώρα <input type="number" id="fStock" min="0" step="any" inputmode="decimal"></label>
+      <label>Τιμή ανά μονάδα (€) <input type="number" id="fPrice" min="0" step="0.01" inputmode="decimal"></label>
+    </div>
+    <div class="grid2">
+      <label>Όριο <input type="number" id="fMin" min="0" step="any" inputmode="decimal"></label>
+      <label>Στόχος <input type="number" id="fTarget" min="0" step="any" inputmode="decimal"></label>
+    </div>
+    <p class="hint">Όταν το απόθεμα πέσει στο όριο ή πιο κάτω, το προϊόν μπαίνει στη λίστα με ποσότητα όση λείπει για τον στόχο.</p>
+    <div class="actions">
+      <button class="btn danger" type="button" id="fDelete">Διαγραφή</button>
+      <span>
+        <button class="btn ghost" type="button" id="fCancel">Άκυρο</button>
+        <button class="btn" type="submit" id="fSave">Αποθήκευση</button>
+      </span>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="sharedDlg">
+  <div class="pad">
+    <h3>Λίστα που σου στάλθηκε</h3>
+    <div class="rows" id="sharedOut"></div>
+    <div class="actions">
+      <button class="btn ghost" type="button" id="sharedClose">Κλείσιμο</button>
+      <button class="btn" type="button" id="sharedMerge">Πρόσθεση στη λίστα μου</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="iosDlg">
+  <div class="pad">
+    <h3>Εγκατάσταση στο iPhone</h3>
+    <ol>
+      <li>Πάτα το κουμπί Κοινή χρήση του Safari (το τετράγωνο με το βέλος).</li>
+      <li>Διάλεξε «Προσθήκη στην οθόνη Αφετηρίας».</li>
+      <li>Πάτα «Προσθήκη». Το Καλάθι θα ανοίγει σαν κανονική εφαρμογή.</li>
+    </ol>
+    <div class="actions"><span></span><button class="btn" type="button" id="iosClose">Εντάξει</button></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const CATS = [
+  ["produce", "Φρούτα & λαχανικά"], ["bakery", "Αρτοποιία"], ["dairy", "Γαλακτοκομικά & αυγά"],
+  ["meat", "Κρέας & ψάρι"], ["pantry", "Ντουλάπι"], ["frozen", "Κατεψυγμένα"],
+  ["drinks", "Ποτά & νερά"], ["cleaning", "Καθαριστικά"], ["care", "Προσωπική φροντίδα"], ["other", "Διάφορα"]
+];
+const CAT_NAME = Object.fromEntries(CATS);
+const UNITS = ["τεμ.", "kg", "λίτρα", "συσκ."];
+const eur = new Intl.NumberFormat("el-GR", { style: "currency", currency: "EUR" });
+const nf = new Intl.NumberFormat("el-GR", { maximumFractionDigits: 2 });
+const dateF = new Intl.DateTimeFormat("el-GR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const $ = (id) => document.getElementById(id);
+
+// [όνομα, κατηγορία, μονάδα, έχουμε, όριο, στόχος, τιμή]
+const SAMPLES = [
+  ["Γάλα φρέσκο", "dairy", "λίτρα", 0, 1, 3, 1.6], ["Αυγά", "dairy", "τεμ.", 4, 4, 12, 0.35],
+  ["Φέτα", "dairy", "kg", 0.4, 0.2, 0.5, 11], ["Γιαούρτι στραγγιστό", "dairy", "τεμ.", 1, 1, 4, 1.3],
+  ["Ντομάτες", "produce", "kg", 1, 0.5, 2, 2.2], ["Μπανάνες", "produce", "kg", 0, 0, 1, 1.9],
+  ["Κρεμμύδια", "produce", "kg", 1.5, 0.5, 2, 1.2], ["Ψωμί", "bakery", "τεμ.", 0, 0, 1, 1.4],
+  ["Κοτόπουλο φιλέτο", "meat", "kg", 0, 0, 1, 8.9], ["Ελαιόλαδο", "pantry", "λίτρα", 3, 1, 4, 9.5],
+  ["Μακαρόνια", "pantry", "συσκ.", 1, 1, 3, 1.1], ["Ρύζι", "pantry", "συσκ.", 2, 1, 2, 2.3],
+  ["Καφές", "pantry", "συσκ.", 1, 1, 2, 4.5], ["Νερό 6×1,5 λ.", "drinks", "συσκ.", 1, 1, 2, 2.4],
+  ["Απορρυπαντικό πιάτων", "cleaning", "τεμ.", 1, 0, 2, 2.9], ["Χαρτί υγείας", "cleaning", "συσκ.", 1, 1, 2, 5.2],
+  ["Οδοντόκρεμα", "care", "τεμ.", 2, 1, 2, 2.8]
+];
+
+const state = { items: new Map(), trips: [], budget: 60, tab: "list", editing: null, confirmFinish: false };
+
+/* ---------- Αποθήκευση στη συσκευή ---------- */
+const KEY = "kalathi-data-v1";
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ items: [...state.items.values()], trips: state.trips.slice(0, 200), budget: state.budget }));
+  } catch (e) { toast("Δεν έγινε αποθήκευση. Ο χώρος της συσκευής ίσως γέμισε."); }
+}
+function load() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (raw && Array.isArray(raw.items)) {
+    state.items = new Map(raw.items.map(i => [i.id, i]));
+    state.trips = Array.isArray(raw.trips) ? raw.trips : [];
+    if (typeof raw.budget === "number") state.budget = raw.budget;
+    return;
+  }
+  for (const [name, cat, unit, stock, min, target, price] of SAMPLES) {
+    const id = newId(); state.items.set(id, { id, name, cat, unit, stock, min, target, price, extra: 0, checked: false, oneOff: false, sample: true });
+  }
+  save();
+}
+const store = {
+  update(id, patch) { const it = state.items.get(id); if (it) Object.assign(it, patch); save(); render(); },
+  add(data) { const id = newId(); state.items.set(id, { id, ...data }); save(); render(); },
+  remove(id) { state.items.delete(id); save(); render(); },
+  addTrip(trip) { state.trips.unshift({ id: newId(), ...trip }); save(); render(); },
+  setBudget(weekly) { state.budget = weekly; save(); render(); }
+};
+
+/* ---------- Λογική ---------- */
+const stockOf = (it) => Number(it.stock) || 0;
+function need(it) {
+  const s = stockOf(it), min = Number(it.min) || 0, target = Number(it.target) || 0, extra = Number(it.extra) || 0;
+  if (it.oneOff) return { qty: extra || 1, reason: "man" };
+  let qty = 0, reason = null;
+  if (target > 0 && s <= min && target > s) { qty = target - s; reason = s <= 0 ? "out" : "low"; }
+  if (extra > 0) { qty += extra; reason = reason || "man"; }
+  return { qty: Math.round(qty * 100) / 100, reason };
+}
+function status(it) {
+  const s = stockOf(it), min = Number(it.min) || 0;
+  if (s <= 0) return ["crit", "Τελείωσε"];
+  if (s <= min) return ["warn", "Χαμηλό"];
+  return ["ok", "Επαρκεί"];
+}
+const REASON = { out: ["crit", "Τελείωσε"], low: ["warn", "Χαμηλό"], man: ["man", "Προστέθηκε"] };
+function listEntries() {
+  const out = [];
+  for (const it of state.items.values()) { const n = need(it); if (n.qty > 0) out.push({ it, ...n }); }
+  return out;
+}
+function weekStart() {
+  const d = new Date(); const day = (d.getDay() + 6) % 7;
+  d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - day); return d;
+}
+const byCat = (a, b) => CATS.findIndex(c => c[0] === a) - CATS.findIndex(c => c[0] === b);
+function groupByCat(arr, get) {
+  const g = new Map();
+  for (const x of arr) { const c = CAT_NAME[get(x).cat] ? get(x).cat : "other"; if (!g.has(c)) g.set(c, []); g.get(c).push(x); }
+  return [...g.entries()].sort((a, b) => byCat(a[0], b[0]));
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const EDIT_SVG = '<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+
+/* ---------- Εμφάνιση ---------- */
+function render() {
+  const entries = listEntries();
+  const total = entries.reduce((s, e) => s + e.qty * (Number(e.it.price) || 0), 0);
+  const ws = weekStart();
+  const spent = state.trips.filter(t => new Date(t.at) >= ws).reduce((s, t) => s + (Number(t.total) || 0), 0);
+  const left = state.budget - spent;
+
+  $("cList").textContent = entries.length;
+  $("cInv").textContent = [...state.items.values()].filter(i => !i.oneOff).length;
+  $("sumLine").innerHTML = `<b>${entries.length}</b> προϊόντα στη λίστα · εκτίμηση <b class="num">${eur.format(total)}</b>`;
+  $("sumBudget").textContent = `${eur.format(Math.max(left, 0))} απομένουν`;
+  const pct = state.budget > 0 ? Math.min(100, ((spent + total) / state.budget) * 100) : 0;
+  $("meter").firstElementChild.style.width = pct + "%";
+  $("meter").classList.toggle("over", spent + total > state.budget && state.budget > 0);
+  $("sampleBanner").hidden = ![...state.items.values()].some(i => i.sample);
+  $("shareBtn").disabled = !entries.length;
+
+  renderList(entries);
+  renderInv();
+  renderTrips(spent);
+
+  const checked = entries.filter(e => e.it.checked);
+  const ctotal = checked.reduce((s, e) => s + e.qty * (Number(e.it.price) || 0), 0);
+  $("finish").disabled = !checked.length;
+  $("finish").textContent = state.confirmFinish ? "Πάτα ξανά για επιβεβαίωση" : `Ολοκλήρωση αγορών${checked.length ? " (" + checked.length + ")" : ""}`;
+  $("dockInfo").innerHTML = checked.length
+    ? `Στο καλάθι <b>${checked.length}/${entries.length}</b> · <b class="num">${eur.format(ctotal)}</b>`
+    : "Τσέκαρε ό,τι μπαίνει στο καλάθι.";
+  $("dock").hidden = state.tab !== "list";
+}
+
+function renderList(entries) {
+  const out = $("listOut");
+  if (!state.items.size) {
+    out.innerHTML = `<div class="empty"><strong>Δεν υπάρχουν ακόμα προϊόντα</strong>Πρόσθεσε ό,τι έχετε στο σπίτι από την καρτέλα «Απόθεμα» και η λίστα θα φτιάχνεται μόνη της.</div>`;
+    return;
+  }
+  if (!entries.length) {
+    out.innerHTML = `<div class="empty"><strong>Δεν λείπει τίποτα</strong>Όλα τα προϊόντα είναι πάνω από το όριό τους.</div>`;
+    return;
+  }
+  entries.sort((a, b) => (a.it.checked - b.it.checked) || a.it.name.localeCompare(b.it.name, "el"));
+  out.innerHTML = groupByCat(entries, e => e.it).map(([cat, rows]) => {
+    const no = CATS.findIndex(c => c[0] === cat) + 1;
+    return `<div class="aisle"><h2><span class="no">Δ${no}</span>${esc(CAT_NAME[cat])}</h2><div class="rows">${rows.map(e => {
+      const [cls, label] = REASON[e.reason] || REASON.man;
+      const cost = e.qty * (Number(e.it.price) || 0);
+      return `<div class="row${e.it.checked ? " done" : ""}">
+        <button class="check" data-check="${esc(e.it.id)}" aria-pressed="${!!e.it.checked}" aria-label="Στο καλάθι: ${esc(e.it.name)}">${CHECK_SVG}</button>
+        <div class="name"><strong>${esc(e.it.name)}</strong><div class="meta"><span class="pill ${cls}">${label}</span>${e.it.oneOff ? "<span>μία φορά</span>" : `<span>έχουμε ${nf.format(stockOf(e.it))} ${esc(e.it.unit)}</span>`}</div></div>
+        <div class="qty"><div class="q num">${nf.format(e.qty)} ${esc(e.it.unit || "τεμ.")}</div><div class="p num">${cost ? "~" + eur.format(cost) : ""}</div></div>
+      </div>`;
+    }).join("")}</div></div>`;
+  }).join("");
+}
+
+function renderInv() {
+  const out = $("invOut");
+  const q = $("invSearch").value.trim().toLocaleLowerCase("el");
+  const items = [...state.items.values()].filter(i => !i.oneOff && (!q || i.name.toLocaleLowerCase("el").includes(q)));
+  if (!items.length) {
+    out.innerHTML = `<div class="empty"><strong>${q ? "Δεν βρέθηκε προϊόν" : "Το απόθεμα είναι άδειο"}</strong>${q ? "Δοκίμασε άλλη λέξη." : "Πάτα «Νέο προϊόν» για να προσθέσεις ό,τι αγοράζετε συνήθως."}</div>`;
+    return;
+  }
+  items.sort((a, b) => a.name.localeCompare(b.name, "el"));
+  out.innerHTML = groupByCat(items, i => i).map(([cat, rows]) => `<div class="aisle"><h2>${esc(CAT_NAME[cat])}</h2><div class="rows">${rows.map(it => {
+    const [cls, label] = status(it);
+    return `<div class="row inv-row">
+      <div class="name"><strong>${esc(it.name)}</strong><div class="meta"><span>όριο ${nf.format(Number(it.min) || 0)} · στόχος ${nf.format(Number(it.target) || 0)}</span>${it.price ? `<span class="num">${eur.format(it.price)}/${esc(it.unit)}</span>` : ""}</div></div>
+      <div class="pill-cell"><span class="pill ${cls}">${label}</span></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <div class="stepper"><button data-step="-1" data-id="${esc(it.id)}" aria-label="Λιγότερο ${esc(it.name)}">−</button><span class="num">${nf.format(stockOf(it))} ${esc(it.unit)}</span><button data-step="1" data-id="${esc(it.id)}" aria-label="Περισσότερο ${esc(it.name)}">+</button></div>
+        <button class="icon-btn" data-edit="${esc(it.id)}" aria-label="Επεξεργασία ${esc(it.name)}">${EDIT_SVG}</button>
+      </div>
+    </div>`;
+  }).join("")}</div></div>`).join("");
+}
+
+function renderTrips(spent) {
+  const last4 = state.trips.filter(t => new Date(t.at) >= new Date(Date.now() - 28 * 864e5));
+  const avg = last4.reduce((s, t) => s + (Number(t.total) || 0), 0) / 4;
+  $("stats").innerHTML = `
+    <div><small>Αυτή την εβδομάδα</small><b>${eur.format(spent)}</b></div>
+    <div><small>Προϋπολογισμός</small><b>${eur.format(state.budget)}</b></div>
+    <div><small>Μέσος όρος / εβδ.</small><b>${eur.format(avg)}</b></div>`;
+  if (document.activeElement !== $("budgetIn")) $("budgetIn").value = state.budget;
+  const out = $("tripsOut");
+  if (!state.trips.length) {
+    out.innerHTML = `<div class="empty"><strong>Καμία αγορά ακόμα</strong>Όταν πατήσεις «Ολοκλήρωση αγορών» στη λίστα, η αγορά καταγράφεται εδώ και το απόθεμα ενημερώνεται.</div>`;
+    return;
+  }
+  out.innerHTML = `<div class="rows">${state.trips.slice(0, 60).map(t => `<div class="trip">
+    <div class="head"><span>${esc(dateF.format(new Date(t.at)))}</span><span class="num">${eur.format(Number(t.total) || 0)}</span></div>
+    <div class="items">${(t.lines || []).map(l => `${esc(l.name)} ${nf.format(l.qty)} ${esc(l.unit)}`).join(" · ")}</div>
+  </div>`).join("")}</div>`;
+}
+
+/* ---------- Ενέργειες ---------- */
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+
+function setTab(tab) {
+  state.tab = tab;
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === tab);
+  $("view-list").hidden = tab !== "list"; $("view-inv").hidden = tab !== "inv"; $("view-trips").hidden = tab !== "trips";
+  try { localStorage.setItem("kalathi-tab", tab); } catch (e) {}
+  render();
+}
+document.querySelector(".tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab); });
+
+$("listOut").addEventListener("click", e => {
+  const b = e.target.closest("[data-check]"); if (!b) return;
+  const it = state.items.get(b.dataset.check);
+  state.confirmFinish = false;
+  store.update(it.id, { checked: !it.checked });
+});
+
+$("invOut").addEventListener("click", e => {
+  const ed = e.target.closest("[data-edit]"); if (ed) return openDialog(ed.dataset.edit);
+  const b = e.target.closest("[data-step]"); if (!b) return;
+  const it = state.items.get(b.dataset.id); if (!it) return;
+  const step = it.unit === "kg" || it.unit === "λίτρα" ? 0.5 : 1;
+  store.update(it.id, { stock: Math.max(0, Math.round((stockOf(it) + step * Number(b.dataset.step)) * 100) / 100) });
+});
+$("invSearch").addEventListener("input", renderInv);
+
+$("quickCat").innerHTML = CATS.map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+$("quickCat").value = "other";
+function addToList(name, cat, qty = 1, unit = "τεμ.") {
+  const existing = [...state.items.values()].find(i => i.name.toLocaleLowerCase("el") === name.toLocaleLowerCase("el"));
+  if (existing) store.update(existing.id, { extra: (Number(existing.extra) || 0) + qty, checked: false });
+  else store.add({ name, cat, unit, stock: 0, min: 0, target: 0, price: 0, extra: qty, oneOff: true, checked: false });
+}
+$("quickForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("quickName").value.trim(); if (!name) return;
+  addToList(name, $("quickCat").value);
+  toast(`Προστέθηκε: ${name}`);
+  $("quickName").value = "";
+});
+
+$("finish").addEventListener("click", () => {
+  if (!state.confirmFinish) { state.confirmFinish = true; render(); setTimeout(() => { state.confirmFinish = false; render(); }, 4000); return; }
+  state.confirmFinish = false;
+  const bought = listEntries().filter(e => e.it.checked);
+  if (!bought.length) return;
+  const total = bought.reduce((s, e) => s + e.qty * (Number(e.it.price) || 0), 0);
+  for (const e of bought) {
+    if (e.it.oneOff) state.items.delete(e.it.id);
+    else Object.assign(e.it, { stock: Math.round((stockOf(e.it) + e.qty) * 100) / 100, extra: 0, checked: false });
+  }
+  store.addTrip({ at: new Date().toISOString(), total: Math.round(total * 100) / 100, count: bought.length,
+    lines: bought.map(e => ({ name: e.it.name, qty: e.qty, unit: e.it.unit || "τεμ." })) });
+  toast(`Καταγράφηκε αγορά ${eur.format(total)}. Το απόθεμα ενημερώθηκε.`);
+});
+
+$("budgetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = Number($("budgetIn").value); if (!(v >= 0)) return;
+  store.setBudget(v); toast("Ο προϋπολογισμός αποθηκεύτηκε");
+  $("budgetIn").blur();
+});
+
+$("clearSamples").addEventListener("click", () => {
+  const btn = $("clearSamples");
+  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Σίγουρα; Πάτα ξανά"; setTimeout(() => { btn.dataset.confirm = ""; btn.textContent = "Διαγραφή παραδειγμάτων"; }, 4000); return; }
+  btn.dataset.confirm = "";
+  for (const i of [...state.items.values()]) if (i.sample) state.items.delete(i.id);
+  save(); render(); toast("Τα παραδείγματα σβήστηκαν");
+});
+
+/* Φόρμα προϊόντος */
+$("fCat").innerHTML = CATS.map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+$("fUnit").innerHTML = UNITS.map(u => `<option>${u}</option>`).join("");
+function openDialog(id) {
+  const it = id ? state.items.get(id) : null;
+  state.editing = id || null;
+  $("dlgTitle").textContent = it ? "Επεξεργασία" : "Νέο προϊόν";
+  $("fName").value = it?.name || "";
+  $("fCat").value = it?.cat || "pantry";
+  $("fUnit").value = it?.unit || "τεμ.";
+  $("fStock").value = it ? stockOf(it) : 0;
+  $("fPrice").value = it?.price ?? "";
+  $("fMin").value = it?.min ?? 1;
+  $("fTarget").value = it?.target ?? 3;
+  $("fDelete").hidden = !it; $("fDelete").dataset.confirm = ""; $("fDelete").textContent = "Διαγραφή";
+  $("dlg").showModal();
+  if (!it) $("fName").focus();
+}
+$("newItem").addEventListener("click", () => openDialog(null));
+$("fCancel").addEventListener("click", () => $("dlg").close());
+$("itemForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("fName").value.trim(); if (!name) return;
+  const num = (id) => Math.max(0, Number($(id).value) || 0);
+  const data = { name, cat: $("fCat").value, unit: $("fUnit").value, stock: num("fStock"), price: num("fPrice"), min: num("fMin"), target: num("fTarget") };
+  const id = state.editing;
+  if (id) store.update(id, { ...data, sample: false });
+  else store.add({ ...data, extra: 0, checked: false, oneOff: false });
+  toast(id ? "Αποθηκεύτηκε" : `Προστέθηκε: ${name}`);
+  $("dlg").close();
+});
+$("fDelete").addEventListener("click", () => {
+  const b = $("fDelete");
+  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Σίγουρα;"; return; }
+  store.remove(state.editing); toast("Διαγράφηκε");
+  $("dlg").close();
+});
+
+/* ---------- Αποστολή λίστας με link ---------- */
+const b64url = {
+  enc: (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
+  dec: (s) => { const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/")); return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))); }
+};
+$("shareBtn").addEventListener("click", async () => {
+  const entries = listEntries();
+  if (!entries.length) return;
+  const rows = entries.map(e => [e.it.name, e.qty, e.it.unit || "τεμ.", e.it.cat || "other"]);
+  const url = location.origin + location.pathname + "#l=" + b64url.enc(JSON.stringify(rows));
+  const text = "Λίστα για ψώνια:\n" + groupByCat(entries, e => e.it).map(([cat, list]) =>
+    `\n${CAT_NAME[cat]}\n` + list.map(e => `• ${e.it.name} ${nf.format(e.qty)} ${e.it.unit || "τεμ."}`).join("\n")).join("\n");
+  if (navigator.share) {
+    try { await navigator.share({ title: "Λίστα για ψώνια", text: text + "\n\nΆνοιξέ τη στο Καλάθι:", url }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(text + "\n\n" + url); toast("Η λίστα αντιγράφηκε. Επικόλλησέ τη σε μήνυμα."); }
+  catch (e) { toast("Δεν έγινε αντιγραφή της λίστας."); }
+});
+
+let shared = null;
+function openShared() {
+  const m = location.hash.match(/^#l=([A-Za-z0-9_-]+)$/);
+  if (!m) return;
+  try { shared = JSON.parse(b64url.dec(m[1])).filter(r => Array.isArray(r) && typeof r[0] === "string").slice(0, 200); }
+  catch (e) { toast("Το link της λίστας δεν διαβάζεται."); return; }
+  $("sharedOut").innerHTML = shared.map(([n, q, u]) =>
+    `<div class="row" style="grid-template-columns:1fr auto"><div class="name"><strong>${esc(n)}</strong></div><div class="qty num">${nf.format(Number(q) || 1)} ${esc(u)}</div></div>`).join("");
+  $("sharedDlg").showModal();
+}
+function closeShared() { $("sharedDlg").close(); history.replaceState(null, "", location.pathname); shared = null; }
+$("sharedClose").addEventListener("click", closeShared);
+$("sharedMerge").addEventListener("click", () => {
+  for (const [n, q, u, c] of shared || []) addToList(n.slice(0, 120), CAT_NAME[c] ? c : "other", Number(q) > 0 ? Number(q) : 1, UNITS.includes(u) ? u : "τεμ.");
+  toast(`Προστέθηκαν ${shared.length} προϊόντα στη λίστα σου`);
+  closeShared(); setTab("list");
+});
+addEventListener("hashchange", openShared);
+
+/* ---------- Αντίγραφο ασφαλείας ---------- */
+$("exportBtn").addEventListener("click", () => {
+  const data = JSON.stringify({ app: "kalathi", version: 1, savedAt: new Date().toISOString(), items: [...state.items.values()], trips: state.trips, budget: state.budget }, null, 1);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+  a.download = `kalathi-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$("importBtn").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (d.app !== "kalathi" || !Array.isArray(d.items)) throw new Error("bad");
+    state.items = new Map(d.items.filter(i => i && i.id && i.name).map(i => [String(i.id), i]));
+    state.trips = Array.isArray(d.trips) ? d.trips : [];
+    if (typeof d.budget === "number") state.budget = d.budget;
+    save(); render(); toast("Τα δεδομένα επαναφέρθηκαν");
+  } catch (err) { toast("Αυτό το αρχείο δεν είναι αντίγραφο του Καλαθιού."); }
+});
+
+/* ---------- Εγκατάσταση ---------- */
+let installEvt = null;
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (!standalone && isIOS) $("installBtn").hidden = false;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; $("installBtn").hidden = false; });
+addEventListener("appinstalled", () => { $("installBtn").hidden = true; installEvt = null; });
+$("installBtn").addEventListener("click", async () => {
+  if (installEvt) { installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("installBtn").hidden = true; }
+  else $("iosDlg").showModal();
+});
+$("iosClose").addEventListener("click", () => $("iosDlg").close());
+
+/* ---------- Εκκίνηση ---------- */
+load();
+try { const t = localStorage.getItem("kalathi-tab"); if (t) state.tab = t; } catch (e) {}
+setTab(["list", "inv", "trips"].includes(state.tab) ? state.tab : "list");
+openShared();
+addEventListener("storage", e => { if (e.key === KEY) { load(); render(); } });
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
